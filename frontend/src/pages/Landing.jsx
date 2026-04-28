@@ -200,7 +200,7 @@ function Landing() {
       {/* Footer */}
       <footer className="border-t border-white/5 px-6 py-8 text-center text-xs text-muted">
         <p className="font-display text-sm font-bold text-ink mb-2">Snackd</p>
-        <p>© 2025 Snackd Technologies Pvt Ltd · Made with ❤️ in Chennai</p>
+        <p>© 2026 Snackd · Made in SRM</p>
       </footer>
     </div>
   );
