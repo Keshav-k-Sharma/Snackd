@@ -143,8 +143,55 @@ function DeliveryMap({ driverName }) {
 }
 
 function OrderTracking() {
-  const order = mockOrders[0];
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/users/1/orders/');
+        const data = await response.json();
+        if (data && data.length > 0) {
+          // Take the most recent order
+          const latest = data[data.length - 1];
+          setOrder({
+            ...latest,
+            id: `ORD-${latest.OrderID}`,
+            restaurantName: latest.RestaurantID === 1 ? 'The Ember Kitchen' : 'Biryani Brotherhood',
+            items: [
+              { name: 'Order Items', qty: 1, price: latest.TotalAmount }
+            ],
+            total: latest.TotalAmount,
+            estimatedDelivery: new Date(Date.now() + 25 * 60 * 1000).toISOString(),
+            status: 'preparing',
+            statusHistory: [
+              { status: 'placed',           label: 'Order Placed',         time: 'Now', done: true  },
+              { status: 'confirmed',        label: 'Restaurant Confirmed', time: 'Now', done: true  },
+              { status: 'preparing',        label: 'Preparing Your Food',  time: 'Now', done: true  },
+              { status: 'out_for_delivery', label: 'Out for Delivery',     time: null,  done: false },
+              { status: 'delivered',        label: 'Delivered',            time: null,  done: false },
+            ],
+            driver: {
+              id: 'd-01',
+              name: 'Ravi Kumar',
+              phone: '+91 98001 23456',
+              rating: 4.8,
+              totalDeliveries: 2340,
+              vehicle: 'Activa 6G · TN09 AB 2341',
+            }
+          });
+        }
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+        setLoading(false);
+      }
+    };
+    fetchOrders();
+  }, []);
+
+  if (loading) return <div className="min-h-screen" style={{ background: '#080B12' }}><Navbar /><div className="text-center py-20 text-muted">Loading orders...</div></div>;
 
   if (!order) {
     return (

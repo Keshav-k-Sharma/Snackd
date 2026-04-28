@@ -1,9 +1,11 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Shield, Clock, Star, Zap, Gift } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import HeroSection from '../components/HeroSection';
 import RestaurantCard from '../components/RestaurantCard';
-import { restaurants, categories, mockOrders } from '../data/mockData';
+
+// ... (skipping STATS and PERKS)
 
 const STATS = [
   { icon: '🍽', value: '500+', label: 'Restaurants' },
@@ -20,8 +22,58 @@ const PERKS = [
 ];
 
 function Landing() {
-  const featured = restaurants.filter(r => r.promoted);
-  const activeOrder = mockOrders[0];
+  const [featured, setFeatured] = useState([]);
+  const [activeOrder, setActiveOrder] = useState(null);
+  const [dbCategories, setDbCategories] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch Categories
+        const catRes = await fetch('http://localhost:8000/categories/');
+        const cats = await catRes.json();
+        setDbCategories(cats.map(c => ({
+          id: c.Name.toLowerCase(),
+          label: c.Name,
+          emoji: c.Icon || '🍕'
+        })));
+
+        // Fetch Restaurants and filter for featured
+        const resResponse = await fetch('http://localhost:8000/restaurants/');
+        const allRes = await resResponse.json();
+        const mapped = allRes.map(r => ({
+          ...r,
+          id: r.RestaurantID.toString(),
+          name: r.Name,
+          rating: r.Rating,
+          reviewCount: 1200,
+          deliveryFee: r.DeliveryFee,
+          priceLevel: 2,
+          tags: r.IsOpen ? ['Open Now'] : ['Closed'],
+          promoted: r.Rating >= 4.5,
+          isOpen: r.IsOpen,
+          cuisineLabel: 'Italian · Pizza',
+          deliveryTime: `${r.PrepTimeMins} min`,
+          coverGradient: 'from-orange-900 via-red-900 to-rose-900',
+        }));
+        setFeatured(mapped.slice(0, 2)); 
+
+        // Fetch Active Order
+        const orderRes = await fetch('http://localhost:8000/users/1/orders/');
+        const orders = await orderRes.json();
+        if (orders && orders.length > 0) {
+          const latest = orders[orders.length - 1];
+          setActiveOrder({
+            ...latest,
+            restaurantName: latest.RestaurantID === 1 ? 'The Ember Kitchen' : 'Biryani Brotherhood'
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching landing data:", error);
+      }
+    };
+    fetchData();
+  }, []);
 
   return (
     <div className="min-h-screen" style={{ background:'#080B12' }}>
@@ -70,7 +122,7 @@ function Landing() {
             What are you craving?
           </h2>
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-            {categories.map(cat => (
+            {dbCategories.map(cat => (
               <Link key={cat.id} to={`/restaurants?category=${cat.id}`}
                 className="shrink-0 flex flex-col items-center gap-2 px-5 py-4 rounded-2xl glass-card
                   hover:border-white/15 hover:scale-105 transition-all duration-200 cursor-pointer min-w-[80px]">

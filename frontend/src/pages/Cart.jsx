@@ -26,17 +26,45 @@ function Cart() {
     if (promoInput.trim()) applyPromo(promoInput.trim());
   };
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     setPlacing(true);
-    // API placeholder: POST /api/orders
-    setTimeout(() => {
+    try {
+      const orderData = {
+        UserID: 1, // Seeded Arjun Mehta
+        RestaurantID: parseInt(items[0].item.restaurantId),
+        AddressID: 1, // Seeded Home
+        Status: "Pending",
+        TotalAmount: total,
+        DeliveryFee: deliveryFee,
+        Discount: promoDiscount,
+        items: items.map(entry => ({
+          FoodID: parseInt(entry.item.id),
+          Quantity: entry.qty,
+          PriceAtOrder: entry.item.price
+        }))
+      };
+
+      const response = await fetch('http://localhost:8000/orders/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData)
+      });
+
+      if (response.ok) {
+        setPlacing(false);
+        setPlaced(true);
+        setTimeout(() => {
+          clearCart();
+          navigate('/orders');
+        }, 1800);
+      } else {
+        throw new Error("Failed to place order");
+      }
+    } catch (error) {
+      console.error("Order placement error:", error);
       setPlacing(false);
-      setPlaced(true);
-      setTimeout(() => {
-        clearCart();
-        navigate('/orders');
-      }, 1800);
-    }, 1500);
+      alert("Error placing order. Is the backend running?");
+    }
   };
 
   if (placed) {
