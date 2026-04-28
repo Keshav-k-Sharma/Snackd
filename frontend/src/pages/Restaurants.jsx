@@ -4,7 +4,7 @@ import { SlidersHorizontal, Search, X } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import RestaurantCard from '../components/RestaurantCard';
 import SkeletonLoader from '../components/SkeletonLoader';
-import { restaurants, categories } from '../data/mockData';
+// Remove mock data imports since we use the database
 
 const SORT_OPTIONS = [
   { value: 'relevance', label: 'Relevance' },
@@ -19,19 +19,68 @@ function Restaurants() {
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [categoriesList, setCategoriesList] = useState([{ id: 'all', label: 'All', emoji: '🌐' }]);
   const [activeCategory, setActiveCategory] = useState(searchParams.get('category') || 'all');
   const [sort, setSort] = useState('relevance');
   const [ratingFilter, setRatingFilter] = useState('');
   const [freeDelivery, setFreeDelivery] = useState(false);
   const [vegsOnly, setVegsOnly] = useState(false);
+  const [dbRestaurants, setDbRestaurants] = useState([]);
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 900);
-    return () => clearTimeout(t);
+    const fetchRestaurantsAndCategories = async () => {
+      try {
+        setLoading(true);
+        // Fetch Categories first
+        const catRes = await fetch('http://localhost:8000/categories/');
+        const dbCats = await catRes.json();
+        
+        const mappedCats = [
+          { id: 'all', label: 'All', emoji: '🌐' },
+          ...dbCats.map(c => ({
+            id: c.Name.toLowerCase(),
+            label: c.Name,
+            emoji: c.Icon || '🍕'
+          }))
+        ];
+        setCategoriesList(mappedCats);
+        // Fetch Restaurants
+        const resResponse = await fetch('http://localhost:8000/restaurants/');
+        const data = await resResponse.json();
+        
+        const mappedData = data.map(r => {
+          const category = dbCats.find(c => c.CategoryID === r.CategoryID);
+          const catId = category ? category.Name.toLowerCase() : 'all';
+          
+          return {
+            ...r,
+            id: r.RestaurantID.toString(),
+            name: r.Name,
+            rating: r.Rating,
+            cuisine: [catId], 
+            cuisineLabel: `${category ? category.Name : 'Food'}`,
+            reviewCount: 1200,
+            deliveryTime: `${r.PrepTimeMins} min`,
+            deliveryFee: r.DeliveryFee,
+            priceLevel: 2,
+            tags: r.IsOpen ? ['Open Now'] : ['Closed'],
+            promoted: r.Rating >= 4.5,
+            isOpen: r.IsOpen,
+            coverGradient: 'from-orange-900 via-red-900 to-rose-900',
+          };
+        });
+        setDbRestaurants(mappedData);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setLoading(false);
+      }
+    };
+    fetchRestaurantsAndCategories();
   }, []);
 
   const filtered = useMemo(() => {
-    let list = [...restaurants];
+    let list = [...dbRestaurants];
 
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -109,7 +158,7 @@ function Restaurants() {
 
         {/* Category pills */}
         <div className="flex gap-2 overflow-x-auto pb-2 mb-6">
-          {categories.map(cat => (
+          {categoriesList.map(cat => (
             <button key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
               className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium

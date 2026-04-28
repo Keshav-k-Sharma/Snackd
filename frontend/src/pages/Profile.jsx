@@ -57,8 +57,40 @@ const STATUS_COLOR = {
 };
 
 function Profile() {
-  const user = mockUser;
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('orders');
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/users/1');
+        const data = await response.json();
+        // Map DB user to component expected fields
+        setUser({
+          ...data,
+          id: data.UserID.toString(),
+          name: data.Name,
+          email: data.Email,
+          phone: data.Phone,
+          loyaltyPoints: 2840,
+          loyaltyTier: 'Gold',
+          joinedAt: data.CreatedAt,
+          addresses: [
+            { id: 'a1', label: 'Home', address: '14/B, Anna Nagar West, Chennai 600040', default: true },
+          ]
+        });
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching user:", error);
+        setLoading(false);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  if (loading || !user) return <div className="min-h-screen" style={{ background: '#080B12' }}><Navbar /><div className="text-center py-20 text-muted">Loading profile...</div></div>;
+
   const initials = user.name.split(' ').map(n => n[0]).join('');
 
   const TABS = [

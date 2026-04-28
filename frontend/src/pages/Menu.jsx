@@ -4,13 +4,12 @@ import { ArrowLeft, Star, Clock, Bike, Search, ChevronRight, ShoppingBag } from 
 import Navbar from '../components/Navbar';
 import FoodCard from '../components/FoodCard';
 import { SkeletonFoodCard } from '../components/SkeletonLoader';
-import { restaurants, menuByRestaurant } from '../data/mockData';
 import { useCart } from '../context/CartContext';
 
 function Menu() {
   const { id } = useParams();
-  const restaurant = restaurants.find(r => r.id === id);
-  const menu = menuByRestaurant[id];
+  const [restaurant, setRestaurant] = useState(null);
+  const [menu, setMenu] = useState(null);
   const { totalItems, total, _conflict, clearConflict, clearCart } = useCart();
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('');
@@ -20,16 +19,69 @@ function Menu() {
   const categoryRefs = useRef({});
 
   useEffect(() => {
-    const t = setTimeout(() => {
-      setLoading(false);
-      if (menu) setActiveCategory(menu.categories[0]);
-    }, 800);
-    return () => clearTimeout(t);
-  }, [menu]);
+    const fetchMenuAndRestaurant = async () => {
+      try {
+        setLoading(true);
+        // Fetch Restaurant details
+        const resResponse = await fetch(`http://localhost:8000/restaurants/`);
+        const allRes = await resResponse.json();
+        const found = allRes.find(r => r.RestaurantID.toString() === id);
+        
+        if (found) {
+          setRestaurant({
+            ...found,
+            id: found.RestaurantID.toString(),
+            cuisineLabel: 'Italian · Pizza',
+            reviewCount: 1200,
+            deliveryTime: `${found.PrepTimeMins} min`,
+            coverGradient: 'from-orange-900 via-red-900 to-rose-900',
+          });
+        }
+
+        // Fetch Menu Items
+        const menuResponse = await fetch(`http://localhost:8000/restaurants/${id}/food-items/`);
+        const data = await menuResponse.json();
+        
+        const groupedMenu = {
+          categories: ["Bestsellers"],
+          items: data.map(item => ({
+            ...item,
+            id: item.FoodID.toString(),
+            restaurantId: id,
+            category: "Bestsellers",
+            image: item.ImageURL,
+            price: item.DynamicPrice || item.BasePrice,
+            veg: item.IsVeg,
+            available: item.IsAvailable
+          }))
+        };
+        setMenu(groupedMenu);
+        if (groupedMenu) setActiveCategory(groupedMenu.categories[0]);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setLoading(false);
+      }
+    };
+    if (id) fetchMenuAndRestaurant();
+  }, [id]);
 
   useEffect(() => {
     if (_conflict) { setShowConflict(true); clearConflict(); }
   }, [_conflict]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen" style={{ background: '#080B12' }}>
+        <Navbar />
+        <div className="max-w-4xl mx-auto px-6 py-20">
+          <div className="space-y-4">
+            {[1, 2, 3, 4].map(i => <SkeletonFoodCard key={i} />)}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!restaurant || !menu) {
     return (

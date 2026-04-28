@@ -8,7 +8,17 @@ from .database import SessionLocal, engine
 # Create tables in the database
 models.Base.metadata.create_all(bind=engine)
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(title="Snackd Backend", description="Food Delivery System API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Dependency to get DB session
 def get_db():
@@ -21,6 +31,10 @@ def get_db():
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the Snackd Backend API"}
+
+@app.get("/categories/", response_model=List[schemas.Category])
+def read_categories(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_categories(db, skip=skip, limit=limit)
 
 # --- User Routes ---
 @app.post("/users/", response_model=schemas.User)
@@ -60,3 +74,12 @@ def create_food_item(food_item: schemas.FoodItemCreate, db: Session = Depends(ge
 @app.get("/restaurants/{restaurant_id}/food-items/", response_model=List[schemas.FoodItem])
 def read_food_items(restaurant_id: int, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return crud.get_food_items_for_restaurant(db=db, restaurant_id=restaurant_id, skip=skip, limit=limit)
+
+# --- Order Routes ---
+@app.post("/orders/", response_model=schemas.Order)
+def create_order(order: schemas.OrderCreate, db: Session = Depends(get_db)):
+    return crud.create_order(db=db, order=order)
+
+@app.get("/users/{user_id}/orders/", response_model=List[schemas.Order])
+def read_user_orders(user_id: int, db: Session = Depends(get_db)):
+    return crud.get_orders_by_user(db=db, user_id=user_id)
